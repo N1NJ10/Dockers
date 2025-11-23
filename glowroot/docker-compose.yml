@@ -1,0 +1,36 @@
+version: '3'
+services:
+  cassandra:
+    image: cassandra:3.11.16
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+  glowroot-central:
+    build: ./glowroot-central-custom
+    ports:
+      - "4000:4000"
+    environment:
+      JAVA_TOOL_OPTIONS: -Dglowroot.cassandra.contactPoints=cassandra
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+  demo-app:
+    build: ./demo-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      glowroot-central:
+        condition: service_healthy
+volumes:
+  cassandra-data:
